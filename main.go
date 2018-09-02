@@ -11,14 +11,10 @@ func fn1(datas []interface{}) (err error) {
 	log.Println("fn1:", len(datas))
 	return
 }
-func fn2(datas []interface{}) (err error) {
-	log.Println("fn2:", len(datas))
-	return
-}
 
 func main() {
 	mBatch := core2.NewMemoryBatch(
-		[]core2.BufferHandlerFunc{fn1, fn2},
+		fn1,
 		100,
 		2,
 	)
