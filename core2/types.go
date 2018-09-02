@@ -1,6 +1,9 @@
 package core2
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 type Batch interface {
 	Insert(interface{}) error
@@ -12,17 +15,20 @@ type Batch interface {
 }
 
 type FlushConfig struct {
-	MaxData int
+	maxSize int
+	maxWait time.Duration
 }
 
 type MemoryBatch struct {
-	items     []interface{}
-	mutex     *sync.RWMutex
-	fHandlers []BufferHandlerFunc
+	items []interface{}
+	mutex *sync.RWMutex
+	doFn  BufferHandlerFunc
 
 	flushCfg FlushConfig
 
-	jobs chan []interface{}
+	jobs  chan []interface{}
+	add   chan interface{}
+	close chan bool
 }
 
 type BufferHandlerFunc func([]interface{}) error

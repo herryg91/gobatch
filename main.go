@@ -28,6 +28,7 @@ func main() {
 		if err != nil {
 			log.Println(err)
 		}
+
 		time.Sleep(time.Millisecond * 20)
 	}
 
