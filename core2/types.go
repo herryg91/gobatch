@@ -23,9 +23,6 @@ type MemoryBatch struct {
 	flushCfg FlushConfig
 
 	jobs chan []interface{}
-	// totalWorker int
-	// jobs        chan []interface{}
-
 }
 
 type BufferHandlerFunc func([]interface{}) error
