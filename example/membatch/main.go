@@ -1,18 +1,50 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/herryg91/hgbatch"
 )
 
-func fn1(datas []interface{}) (err error) {
-	log.Println("fn1: processing", len(datas), "datas")
+func fn1(workerID int, datas []interface{}) (err error) {
+	log.Println(fmt.Sprintf("worker %d: processing %d datas", workerID, len(datas)))
 	return
 }
 
 func main() {
+
+	signal_chan := make(chan os.Signal, 1)
+	signal.Notify(signal_chan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
+	go func() {
+		for {
+			s := <-signal_chan
+			switch s {
+			case syscall.SIGINT: // kill -SIGINT XXXX or Ctrl+c
+				log.Println("[stop] Ctrl+C or Kill By SIGINT")
+				os.Exit(0)
+			case syscall.SIGTERM: // kill -SIGTERM XXXX
+				log.Println("[stop] Force Stop")
+				os.Exit(0)
+			case syscall.SIGQUIT: // kill -SIGQUIT XXXX
+				log.Println("[stop] Stop and Core Dump")
+				os.Exit(0)
+			default:
+				log.Println("[stop] Unknown Signal")
+				os.Exit(1)
+			}
+		}
+	}()
+	log.Println("Ctrl+C to Exit")
+
 	mBatch := batch.NewMemoryBatch(
 		fn1,
 		100,
@@ -28,5 +60,7 @@ func main() {
 		time.Sleep(time.Millisecond * 20)
 	}
 
-	time.Sleep(time.Minute * 30)
+	for {
+	}
+
 }
