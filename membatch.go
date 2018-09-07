@@ -11,7 +11,6 @@ type MemoryBatch struct {
 	mutex *sync.RWMutex
 	doFn  BufferDoFn
 
-	//config Section
 	maxSize int
 	maxWait time.Duration
 
