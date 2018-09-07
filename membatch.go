@@ -69,9 +69,6 @@ func (i *MemoryBatch) Flush() (err error) {
 	i.flushChan <- true
 	return
 }
-func (i *MemoryBatch) Stop() {
-	i.stopChan <- true
-}
 
 func (i *MemoryBatch) runBatch() {
 	for {

@@ -7,7 +7,6 @@ type Batch interface {
 
 	Insert(data interface{}) (err error)
 	Flush() (err error)
-	Stop()
 }
 
 type BufferDoFn func(workerID int, datas []interface{}) (err error)
