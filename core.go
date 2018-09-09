@@ -9,4 +9,4 @@ type Batch interface {
 	Stop() (err error)
 }
 
-type BufferDoFn func(workerID int, datas []interface{}) (err error)
+type BatchDoFn func(workerID int, datas []interface{}) (err error)

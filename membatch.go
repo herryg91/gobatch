@@ -10,7 +10,7 @@ import (
 type MemoryBatch struct {
 	items []interface{}
 	mutex *sync.RWMutex
-	doFn  BufferDoFn
+	doFn  BatchDoFn
 
 	maxSize int
 	maxWait time.Duration
@@ -24,7 +24,7 @@ type MemoryBatch struct {
 	stopChan       chan bool
 }
 
-func NewMemoryBatch(flushHandler BufferDoFn, flushMaxSize int, flushMaxWait time.Duration, workerSize int) Batch {
+func NewMemoryBatch(flushHandler BatchDoFn, flushMaxSize int, flushMaxWait time.Duration, workerSize int) Batch {
 	instance := &MemoryBatch{
 		items: []interface{}{},
 		doFn:  flushHandler,
