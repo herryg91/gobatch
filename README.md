@@ -7,7 +7,7 @@ Simple batch library for Golang.
 Install:
 
 ```
-go get github.com/herryg91/hgbatch
+go get github.com/herryg91/gobatch
 ```
 
 Example:
