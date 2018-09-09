@@ -1,6 +1,7 @@
 package batch
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -14,10 +15,13 @@ type MemoryBatch struct {
 	maxSize int
 	maxWait time.Duration
 
-	flushJobs  chan []interface{}
-	insertChan chan interface{}
-	flushChan  chan interface{}
-	stopChan   chan bool
+	flushJobs chan []interface{}
+	isRun     bool
+
+	/*notifier channel*/
+	insertChan     chan interface{}
+	forceFlushChan chan interface{}
+	stopChan       chan bool
 }
 
 func NewMemoryBatch(flushHandler BufferDoFn, flushMaxSize int, flushMaxWait time.Duration, workerSize int) Batch {
@@ -29,18 +33,30 @@ func NewMemoryBatch(flushHandler BufferDoFn, flushMaxSize int, flushMaxWait time
 		maxSize: flushMaxSize,
 		maxWait: flushMaxWait,
 
-		flushJobs:  make(chan []interface{}, workerSize),
-		flushChan:  make(chan interface{}),
-		insertChan: make(chan interface{}),
-		stopChan:   make(chan bool),
+		flushJobs: make(chan []interface{}, workerSize),
+		isRun:     false,
+
+		forceFlushChan: make(chan interface{}),
+		insertChan:     make(chan interface{}),
+		stopChan:       make(chan bool),
 	}
 
-	instance.runWorker(workerSize)
-	go instance.runBatch()
+	instance.setFlushWorker(workerSize)
+	instance.isRun = true
+	go instance.run()
 	return instance
 }
 
-func (i *MemoryBatch) runWorker(workerSize int) {
+/* Flush Section */
+func (i *MemoryBatch) flush(workerID int, datas []interface{}) {
+	err := i.doFn(workerID, datas)
+	if err != nil {
+		log.Println("[error]", err)
+	}
+	return
+}
+
+func (i *MemoryBatch) setFlushWorker(workerSize int) {
 	if workerSize < 1 {
 		workerSize = 1
 	}
@@ -53,35 +69,44 @@ func (i *MemoryBatch) runWorker(workerSize int) {
 	}
 }
 
-func (i *MemoryBatch) flush(workerID int, datas []interface{}) {
-	err := i.doFn(workerID, datas)
-	if err != nil {
-		log.Println("[error]", err)
+/* Notifier Section*/
+
+func (i *MemoryBatch) Insert(data interface{}) (err error) {
+	if i.isRun {
+		i.insertChan <- data
+	} else {
+		err = fmt.Errorf("Failed to Insert. Batch already stopped")
 	}
 	return
 }
 
-func (i *MemoryBatch) Insert(data interface{}) (err error) {
-	i.insertChan <- data
-	return
-}
-func (i *MemoryBatch) Flush() (err error) {
-	i.flushChan <- true
+func (i *MemoryBatch) ForceFlush() (err error) {
+	if i.isRun {
+		i.forceFlushChan <- true
+	} else {
+		err = fmt.Errorf("Failed to Force Flush. Batch already stopped")
+	}
 	return
 }
 
-func (i *MemoryBatch) runBatch() {
+func (i *MemoryBatch) Stop() (err error) {
+	if i.isRun {
+		i.stopChan <- true
+	} else {
+		err = fmt.Errorf("Failed to stop. Batch already stopped")
+	}
+	return
+}
+
+func (i *MemoryBatch) run() {
 	for {
 		select {
 		case <-time.Tick(i.maxWait):
-			if len(i.items) == 0 {
-				break
-			}
-
 			i.mutex.Lock()
-			// Write batch contents to channel,
-			i.flushJobs <- i.items
-			i.items = i.items[:0]
+			if len(i.items) > 0 {
+				i.flushJobs <- i.items
+				i.items = i.items[:0]
+			}
 			i.mutex.Unlock()
 		case item := <-i.insertChan:
 			i.mutex.Lock()
@@ -91,7 +116,7 @@ func (i *MemoryBatch) runBatch() {
 				i.items = i.items[:0]
 			}
 			i.mutex.Unlock()
-		case <-i.flushChan:
+		case <-i.forceFlushChan:
 			i.mutex.Lock()
 			if len(i.items) > 0 {
 				i.flushJobs <- i.items
@@ -100,6 +125,7 @@ func (i *MemoryBatch) runBatch() {
 			i.mutex.Unlock()
 		case isStop := <-i.stopChan:
 			if isStop {
+				i.isRun = false
 				return
 			}
 		}
