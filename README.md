@@ -24,9 +24,10 @@ mBatch := gobatch.NewMemoryBatch(fn1, 100, time.Second*15, 2)
 mBatch.Insert(interface{}{})
 mBatch.Insert(interface{}{})
 mBatch.Insert(interface{}{})
+```
 
-
-// Need additional param to DoFn? You can do something like this
+Need additional param to DoFn? You can do something like this
+```
 type additionalParam struct {
 	RedisPool *redis.Pool
 }
