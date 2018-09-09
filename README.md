@@ -19,7 +19,7 @@ func fn1(workerID int, datas []interface{}) (err error) {
 }
 
 // every 100 datas or 15 second no activity, batch will be processed (fn1 will be run) with 2 worker
-mBatch := batch.NewMemoryBatch(fn1, 100, time.Second*15, 2)
+mBatch := gobatch.NewMemoryBatch(fn1, 100, time.Second*15, 2)
 
 mBatch.Insert(interface{}{})
 mBatch.Insert(interface{}{})
@@ -36,7 +36,7 @@ func (p additionalParam) fn1(workerID int, datas []interface{}) (err error) {
 	return
 }
 
-mBatch := batch.NewMemoryBatch(additionalParam{pool}.fn1, 100, time.Second*15, 2)
+mBatch := gobatch.NewMemoryBatch(additionalParam{pool}.fn1, 100, time.Second*15, 2)
 
 ```
 
