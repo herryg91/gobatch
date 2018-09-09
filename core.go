@@ -1,4 +1,4 @@
-package batch
+package gobatch
 
 type Batch interface {
 	flush(workerID int, datas []interface{})

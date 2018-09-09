@@ -45,7 +45,7 @@ func main() {
 	}()
 	log.Println("Ctrl+C to Exit")
 
-	mBatch := batch.NewMemoryBatch(
+	mBatch := gobatch.NewMemoryBatch(
 		fn1,
 		100,
 		time.Second*15,
