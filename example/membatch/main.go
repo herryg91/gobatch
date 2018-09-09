@@ -53,13 +53,11 @@ func main() {
 	)
 
 	for i := 0; i < 350; i++ {
-		log.Println(i)
 		err := mBatch.Insert(i)
 		if err != nil {
 			log.Println("[error]", err)
 			break
 		}
-
 		time.Sleep(time.Millisecond * 20)
 	}
 
