@@ -59,9 +59,7 @@ func main() {
 			log.Println("[error]", err)
 			break
 		}
-		if i == 101 {
-			mBatch.Stop()
-		}
+
 		time.Sleep(time.Millisecond * 20)
 	}
 
