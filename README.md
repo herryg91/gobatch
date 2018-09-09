@@ -24,6 +24,20 @@ mBatch := batch.NewMemoryBatch(fn1, 100, time.Second*15, 2)
 mBatch.Insert(interface{}{})
 mBatch.Insert(interface{}{})
 mBatch.Insert(interface{}{})
+
+
+// Need additional param to DoFn? You can do something like this
+type additionalParam struct {
+	RedisPool *redis.Pool
+}
+
+func (p additionalParam) fn1(workerID int, datas []interface{}) (err error) {
+	log.Println(fmt.Sprintf("worker %d: processing %d datas", workerID, len(datas)))
+	return
+}
+
+mBatch := batch.NewMemoryBatch(additionalParam{pool}.fn1, 100, time.Second*15, 2)
+
 ```
 
 ## Future Update:
