@@ -32,7 +32,7 @@ type additionalParam struct {
 }
 
 func (p additionalParam) fn1(workerID int, datas []interface{}) (err error) {
-	log.Println(fmt.Sprintf("worker %d: processing %d datas", workerID, len(datas)))
+	// do something log.Println(p)
 	return
 }
 
