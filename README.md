@@ -1,4 +1,4 @@
-# hgbatch
+# gobatch
 
 Simple batch library for Golang.
 
