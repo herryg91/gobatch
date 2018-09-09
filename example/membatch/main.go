@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/herryg91/hgbatch"
+	"github.com/herryg91/gobatch"
 )
 
 func fn1(workerID int, datas []interface{}) (err error) {
