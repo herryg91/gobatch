@@ -17,7 +17,6 @@ func fn1(workerID int, datas []interface{}) (err error) {
 }
 
 func main() {
-
 	signal_chan := make(chan os.Signal, 1)
 	signal.Notify(signal_chan,
 		syscall.SIGINT,
