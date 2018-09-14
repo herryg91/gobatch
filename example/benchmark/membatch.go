@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -11,46 +10,57 @@ import (
 )
 
 type MemBatchCfg struct {
-	MaxSize   int
-	RedisPool *redis.Pool
+	RedisPool        *redis.Pool
+	MemBatchInstance gobatch.Batch
 
-	locker           *sync.Mutex
-	batchProcessed   int
-	batchProcessDone chan bool
+	locker            *sync.Mutex
+	batchProcessed    int
+	maxBatchProcessed int
+	batchProcessDone  chan bool
 }
 
-func (b *MemBatchCfg) bfn1(workerID int, datas []interface{}) (err error) {
-	values := []interface{}{}
-	for _, d := range datas {
-		values = append(values, fmt.Sprintf("test:%v", d), fmt.Sprintf("%v", d))
+func NewMemBatchBenchmark(redisPool *redis.Pool, batchSize int, batchWorker int) *MemBatchCfg {
+	instance := &MemBatchCfg{
+		RedisPool: redisPool,
+
+		locker:            &sync.Mutex{},
+		batchProcessed:    0,
+		maxBatchProcessed: 1000000,
+		batchProcessDone:  make(chan bool),
 	}
-	rdsConn := b.RedisPool.Get()
-	defer rdsConn.Close()
-	rdsConn.Do("mset", values...)
+	instance.MemBatchInstance = gobatch.NewMemoryBatch(instance.addClapToDB, batchSize, time.Second*15, batchWorker)
+	return instance
+}
+func (b *MemBatchCfg) SetDoneCriteria(maxBatchProcessed int) {
+	b.maxBatchProcessed = maxBatchProcessed
+}
+
+func (b *MemBatchCfg) Clap(articleID int) {
+	b.MemBatchInstance.Insert(articleID)
+}
+
+func (b *MemBatchCfg) addClapToDB(workerID int, datas []interface{}) (err error) {
+	mapOfClaps := map[int]int{} //key = article id, value = number of clap
+	for _, d := range datas {
+		if articleID, okParse := d.(int); okParse {
+			if _, okCheckMap := mapOfClaps[articleID]; !okCheckMap {
+				mapOfClaps[articleID] = 0
+			}
+			mapOfClaps[articleID]++
+		}
+	}
+
+	for articleID, score := range mapOfClaps {
+		rdsConn := b.RedisPool.Get()
+		rdsConn.Do("ZINCRBY", "benchmark:membatch", score, strconv.Itoa(articleID))
+		rdsConn.Close()
+	}
 
 	b.locker.Lock()
 	b.batchProcessed += len(datas)
-	if b.batchProcessed >= b.MaxSize {
-		b.locker.Unlock()
+	if b.batchProcessed >= b.maxBatchProcessed {
 		b.batchProcessDone <- true
-		return
 	}
 	b.locker.Unlock()
 	return
-}
-func (b *MemBatchCfg) Run() {
-	log.Println("Start MemBatch")
-	b.batchProcessed = 0
-	b.batchProcessDone = make(chan bool, 1)
-	b.locker = &sync.Mutex{}
-
-	startLogging := time.Now()
-	mBatch := gobatch.NewMemoryBatch(b.bfn1, 100, time.Second*15, 1)
-	for i := 1; i <= b.MaxSize; i++ {
-		mBatch.Insert(i)
-	}
-
-	<-b.batchProcessDone
-	log.Println("MemBatch done in:", time.Since(startLogging).Seconds(), "s")
-
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -22,26 +23,53 @@ func main() {
 		Wait:        true,
 	}
 
-	maxSize := 1000000
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
+	wg := sync.WaitGroup{}
+	wg.Add(3)
+	totalClap := 2000000
+
 	go func() {
 		defer wg.Done()
-		nb := NonBatchCfg{
-			MaxSize:   maxSize,
-			RedisPool: rPool,
+		log.Println("Start NonBatch")
+		nonBatch := NewNonBatchBenchmark(rPool)
+		startLogging := time.Now()
+		for i := 0; i < totalClap; i++ {
+			articleID := generateClap()
+			nonBatch.Clap(articleID)
 		}
-		nb.Run()
+		log.Println("NonBatch done in:", time.Since(startLogging).Seconds(), "s")
 	}()
 
 	go func() {
 		defer wg.Done()
-		mb := MemBatchCfg{
-			MaxSize:   maxSize,
-			RedisPool: rPool,
+		log.Println("Start MemBatch 50.000")
+		memBatch := NewMemBatchBenchmark(rPool, 50000, 1)
+		memBatch.SetDoneCriteria(totalClap)
+		startLogging := time.Now()
+		for i := 0; i < totalClap; i++ {
+			articleID := generateClap()
+			memBatch.Clap(articleID)
 		}
-		mb.Run()
+		<-memBatch.batchProcessDone
+		log.Println("MemBatch 50.000 done in:", time.Since(startLogging).Seconds(), "s")
 	}()
 
+	go func() {
+		defer wg.Done()
+		log.Println("Start MemBatch 1.000.000")
+		memBatch := NewMemBatchBenchmark(rPool, 1000000, 1)
+		memBatch.SetDoneCriteria(totalClap)
+		startLogging := time.Now()
+		for i := 0; i < totalClap; i++ {
+			articleID := generateClap()
+			memBatch.Clap(articleID)
+		}
+		<-memBatch.batchProcessDone
+		log.Println("MemBatch 1.000.000 done in:", time.Since(startLogging).Seconds(), "s")
+	}()
 	wg.Wait()
+}
+
+func generateClap() (articleID int) {
+	articleID = int(time.Now().UnixNano() % 10000)
+	return
 }
