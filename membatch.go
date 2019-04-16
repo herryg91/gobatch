@@ -49,6 +49,8 @@ func NewMemoryBatch(flushHandler BatchDoFn, flushMaxSize int, flushMaxWait time.
 
 /* Flush Section */
 func (i *MemoryBatch) flush(workerID int, datas []interface{}) {
+	i.mutex.RLock()
+	defer i.mutex.RUnlock()
 	err := i.doFn(workerID, datas)
 	if err != nil {
 		log.Println("[error]", err)

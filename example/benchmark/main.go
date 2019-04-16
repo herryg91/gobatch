@@ -24,7 +24,7 @@ func main() {
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(3)
+	wg.Add(2)
 	totalClap := 2000000
 
 	go func() {
@@ -55,16 +55,16 @@ func main() {
 
 	go func() {
 		defer wg.Done()
-		log.Println("Start MemBatch 1.000.000")
-		memBatch := NewMemBatchBenchmark(rPool, 1000000, 1)
-		memBatch.SetDoneCriteria(totalClap)
-		startLogging := time.Now()
-		for i := 0; i < totalClap; i++ {
-			articleID := generateClap()
-			memBatch.Clap(articleID)
-		}
-		<-memBatch.batchProcessDone
-		log.Println("MemBatch 1.000.000 done in:", time.Since(startLogging).Seconds(), "s")
+		// log.Println("Start MemBatch 1.000.000")
+		// memBatch := NewMemBatchBenchmark(rPool, 1000000, 1)
+		// memBatch.SetDoneCriteria(totalClap)
+		// startLogging := time.Now()
+		// for i := 0; i < totalClap; i++ {
+		// 	articleID := generateClap()
+		// 	memBatch.Clap(articleID)
+		// }
+		// <-memBatch.batchProcessDone
+		// log.Println("MemBatch 1.000.000 done in:", time.Since(startLogging).Seconds(), "s")
 	}()
 	wg.Wait()
 }
