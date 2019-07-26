@@ -15,21 +15,38 @@ type LiveEventUser struct {
 
 func main() {
 	batchSize := 1000
-	maxWaitTime := time.Second * 2
-	b := gobatch.NewMemoryBatch(doBatch, batchSize, maxWaitTime, 1)
-
-	for i := 0; i < 100200; i++ {
-		b.Insert(LiveEventUser{
-			Serial:     "serial-" + strconv.Itoa(i),
-			UserSerial: "userSerial-" + strconv.Itoa(i),
-		})
-	}
+	maxWaitTime := time.Second * 3
+	b := gobatch.NewMemoryBatch(batchSize, maxWaitTime, doBatch, 2)
+	go func() {
+		for i := 0; i < 30200; i++ {
+			b.Insert(LiveEventUser{
+				Serial:     "serial-" + strconv.Itoa(i),
+				UserSerial: "userSerial-" + strconv.Itoa(i),
+			})
+		}
+	}()
+	go func() {
+		for i := 0; i < 30200; i++ {
+			b.Insert(LiveEventUser{
+				Serial:     "serial-" + strconv.Itoa(i),
+				UserSerial: "userSerial-" + strconv.Itoa(i),
+			})
+		}
+	}()
+	go func() {
+		for i := 0; i < 30200; i++ {
+			b.Insert(LiveEventUser{
+				Serial:     "serial-" + strconv.Itoa(i),
+				UserSerial: "userSerial-" + strconv.Itoa(i),
+			})
+		}
+	}()
 
 	fmt.Println("Stopping")
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 60)
 }
 
-func doBatch(workerID int, datas []interface{}) (err error) {
+func doBatch(workerID int, datas []interface{}) {
 	//do something
 	liveEventUserDatas := []LiveEventUser{}
 	for _, data := range datas {
@@ -38,12 +55,12 @@ func doBatch(workerID int, datas []interface{}) (err error) {
 		}
 	}
 	if len(liveEventUserDatas) > 0 {
-		joinEventBatch(liveEventUserDatas)
+		joinEventBatch(workerID, liveEventUserDatas)
 	}
 	return
 }
 
-func joinEventBatch(datas []LiveEventUser) {
-	fmt.Println("INSERT INTO COCKROACH (JOIN USER):", len(datas), "datas")
-	//logic to insert to cockroach
+func joinEventBatch(workerID int, datas []LiveEventUser) {
+	fmt.Println("INSERT INTO (JOIN USER):", len(datas), "DATAS, BY WORKER", workerID)
+	time.Sleep(time.Millisecond * 3500)
 }

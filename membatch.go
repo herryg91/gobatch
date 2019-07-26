@@ -1,135 +1,73 @@
 package gobatch
 
 import (
-	"fmt"
-	"log"
 	"sync"
 	"time"
 )
 
-type MemoryBatch struct {
-	items []interface{}
-	mutex *sync.RWMutex
-	doFn  BatchDoFn
-
-	maxSize int
-	maxWait time.Duration
-
-	flushJobs chan []interface{}
-	isRun     bool
-
-	/*notifier channel*/
-	insertChan     chan interface{}
-	forceFlushChan chan interface{}
-	stopChan       chan bool
-}
-
-func NewMemoryBatch(flushHandler BatchDoFn, flushMaxSize int, flushMaxWait time.Duration, workerSize int) Batch {
-	instance := &MemoryBatch{
-		items: []interface{}{},
-		doFn:  flushHandler,
-		mutex: &sync.RWMutex{},
-
+func NewMemoryBatch(flushMaxSize int, flushMaxWait time.Duration, callback BatchFn, workerSize int) *Batch {
+	instance := &Batch{
 		maxSize: flushMaxSize,
 		maxWait: flushMaxWait,
 
-		flushJobs: make(chan []interface{}, workerSize),
-		isRun:     false,
+		items: make([]interface{}, flushMaxSize),
+		doFn:  callback,
+		mutex: &sync.RWMutex{},
 
-		forceFlushChan: make(chan interface{}),
-		insertChan:     make(chan interface{}),
-		stopChan:       make(chan bool),
+		flushChan: make(chan []interface{}, workerSize),
 	}
-
 	instance.setFlushWorker(workerSize)
-	instance.isRun = true
-	go instance.run()
+	go instance.runFlushByTime()
 	return instance
 }
 
-/* Flush Section */
-func (i *MemoryBatch) flush(workerID int, datas []interface{}) {
-	i.mutex.RLock()
-	defer i.mutex.RUnlock()
-	err := i.doFn(workerID, datas)
-	if err != nil {
-		log.Println("[error]", err)
+func (b *Batch) Insert(data interface{}) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	b.items = append(b.items, data)
+	if len(b.items) >= b.maxSize {
+		b.Flush()
 	}
-	return
 }
 
-func (i *MemoryBatch) setFlushWorker(workerSize int) {
+func (b *Batch) runFlushByTime() {
+	for {
+		select {
+		case <-time.Tick(b.maxWait):
+			b.mutex.Lock()
+			b.Flush()
+			b.mutex.Unlock()
+		}
+	}
+}
+
+func (b *Batch) Flush() {
+	if len(b.items) <= 0 {
+		return
+	}
+
+	copiedItems := make([]interface{}, len(b.items))
+	for idx, i := range b.items {
+		copiedItems[idx] = i
+	}
+	b.items = b.items[:0]
+	b.flushChan <- copiedItems
+}
+
+/* Flush Section */
+func (i *Batch) flushWorker(workerID int, datas []interface{}) {
+	i.doFn(workerID, datas)
+}
+
+func (i *Batch) setFlushWorker(workerSize int) {
 	if workerSize < 1 {
 		workerSize = 1
 	}
 	for id := 1; id <= workerSize; id++ {
 		go func(workerID int, flushJobs <-chan []interface{}) {
 			for j := range flushJobs {
-				i.flush(workerID, j)
+				i.flushWorker(workerID, j)
 			}
-		}(id, i.flushJobs)
-	}
-}
-
-/* Notifier Section*/
-
-func (i *MemoryBatch) Insert(data interface{}) (err error) {
-	if i.isRun {
-		i.insertChan <- data
-	} else {
-		err = fmt.Errorf("Failed to Insert. Batch already stopped")
-	}
-	return
-}
-
-func (i *MemoryBatch) ForceFlush() (err error) {
-	if i.isRun {
-		i.forceFlushChan <- true
-	} else {
-		err = fmt.Errorf("Failed to Force Flush. Batch already stopped")
-	}
-	return
-}
-
-func (i *MemoryBatch) Stop() (err error) {
-	if i.isRun {
-		i.stopChan <- true
-	} else {
-		err = fmt.Errorf("Failed to stop. Batch already stopped")
-	}
-	return
-}
-
-func (i *MemoryBatch) run() {
-	for {
-		select {
-		case <-time.Tick(i.maxWait):
-			i.mutex.Lock()
-			if len(i.items) > 0 {
-				i.flushJobs <- i.items
-				i.items = i.items[:0]
-			}
-			i.mutex.Unlock()
-		case item := <-i.insertChan:
-			i.mutex.Lock()
-			i.items = append(i.items, item)
-			if len(i.items) >= i.maxSize {
-				i.flushJobs <- i.items
-				i.items = i.items[:0]
-			}
-			i.mutex.Unlock()
-		case <-i.forceFlushChan:
-			i.mutex.Lock()
-			if len(i.items) > 0 {
-				i.flushJobs <- i.items
-				i.items = i.items[:0]
-			}
-			i.mutex.Unlock()
-		case isStop := <-i.stopChan:
-			if isStop {
-				i.isRun = false
-				return
-			}
-		}
+		}(id, i.flushChan)
 	}
 }

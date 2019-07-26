@@ -1,12 +1,19 @@
 package gobatch
 
-type Batch interface {
-	flush(workerID int, datas []interface{})
-	setFlushWorker(workerSize int)
+import (
+	"sync"
+	"time"
+)
 
-	Insert(data interface{}) (err error)
-	ForceFlush() (err error)
-	Stop() (err error)
+type BatchFn func(workerID int, datas []interface{})
+type Batch struct {
+	maxSize int
+	maxWait time.Duration
+
+	items []interface{}
+	doFn  BatchFn
+	mutex *sync.RWMutex
+
+	/*notifier channel*/
+	flushChan chan []interface{}
 }
-
-type BatchDoFn func(workerID int, datas []interface{}) (err error)
