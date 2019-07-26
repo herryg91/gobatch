@@ -53,21 +53,3 @@ func (b *Batch) Flush() {
 	b.items = b.items[:0]
 	b.flushChan <- copiedItems
 }
-
-/* Flush Section */
-func (i *Batch) flushWorker(workerID int, datas []interface{}) {
-	i.doFn(workerID, datas)
-}
-
-func (i *Batch) setFlushWorker(workerSize int) {
-	if workerSize < 1 {
-		workerSize = 1
-	}
-	for id := 1; id <= workerSize; id++ {
-		go func(workerID int, flushJobs <-chan []interface{}) {
-			for j := range flushJobs {
-				i.flushWorker(workerID, j)
-			}
-		}(id, i.flushChan)
-	}
-}
