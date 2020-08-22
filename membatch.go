@@ -10,7 +10,7 @@ func NewMemoryBatch(flushMaxSize int, flushMaxWait time.Duration, callback Batch
 		maxSize: flushMaxSize,
 		maxWait: flushMaxWait,
 
-		items: make([]interface{}, flushMaxSize),
+		items: make([]interface{}, 0),
 		doFn:  callback,
 		mutex: &sync.RWMutex{},
 
