@@ -30,6 +30,18 @@ func (b *Batch) Insert(data interface{}) {
 	}
 }
 
+func (b *Batch) FlushInsert(data interface{}) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	b.Flush()
+
+	b.items = append(b.items, data)
+	if len(b.items) >= b.maxSize {
+		b.Flush()
+	}
+}
+
 func (b *Batch) runFlushByTime() {
 	for {
 		select {
